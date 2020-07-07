@@ -146,6 +146,9 @@ def find_Entropy(dataset):
 
 
 def getVal(att,values):
+    global attribute_keys
+    print("attkeys",attribute_keys)
+    print("att",att)
     attr_index = attribute_keys.index(att)
     return values[attr_index]
 
@@ -156,6 +159,7 @@ def predict(root_node,value_arr,text):
     #Attribute child.
     if(len(child_arr) == 1 and "target" not in str(child_arr[0].name[0])):
         predict(child_arr[0],value_arr,text)
+        return
 
     if("target" in child_arr[0].name[0]):
         text += "result = " + str(child_arr[0].name[2])
@@ -208,7 +212,7 @@ def main():
     create_attribute_array(df)
     root = ID3(df,target_name,attributes)
     chr_arr = root.returnChildrenArray()
-    predict(root,[1,1],"")
+    predict(root,[1,1,1,1],"")
     #getSvi(df,"F1",1)
 
 
