@@ -1,3 +1,4 @@
+from sklearn.linear_model import LogisticRegression
 import pandas
 import sys
 
@@ -7,6 +8,7 @@ global prediction
 class node(object):
     def __init__(self, name):
         self.name = name
+        self.clf = None
         self.children = []
 
     def add_child(self, obj):
@@ -14,6 +16,10 @@ class node(object):
     def returnChildrenArray(self):
         return list(self.children)
 
+class naiveBayesNode(object):
+    def __init__(self,values):
+        self.values = values
+        self.clf = None
 
 def isAllPosorNeg(S):
     target_index = len(S.columns)-1
@@ -32,10 +38,21 @@ def create_attribute_array(df):
     return
 
 
-def ID3(S,target,attributes):
+def ID3(S,target,attributes,depth,depth_limit):
     target_index = len(S.columns)-1
     target_name = S.columns[target_index]
     returned_node = node("")
+    if(int(depth) >= int(depth_limit)):
+        if(isAllPosorNeg(S)):
+            returned_node.name = "target",":",str(S.values[-1][-1])
+            return returned_node
+        df = S.copy()
+        y = df.iloc[:,-1]
+        X = df.drop(df.columns[-1], axis=1)
+        clf = LogisticRegression(penalty='l2', dual=False, tol=0.0001, C=1.0, fit_intercept=True, intercept_scaling=1, class_weight=None, random_state=None, solver='lbfgs', max_iter=100, multi_class='auto', verbose=0, warm_start=False, n_jobs=None, l1_ratio=None).fit(X,y)
+        returned_node.name = "clf"+":"
+        returned_node.clf = clf
+        return returned_node
 
     if(isAllPosorNeg(S)):
         returned_node.name = "target",":",str(S.values[-1][-1])
@@ -45,11 +62,12 @@ def ID3(S,target,attributes):
         var =  S[target_name].value_counts().sort_values(ascending=False).keys()
         returned_node.name = "target",":",str(var[0])
         return returned_node
-    
+
+
     A = Gain(S,attributes)
     root_node = node("")
     root_node.name = ("root",":",A)
-    #print("A : ",A)
+    
     unique_val_array_root = findUniqueArray(S,A)
     for value in unique_val_array_root:
 
@@ -65,7 +83,12 @@ def ID3(S,target,attributes):
         else:
             attributes_temp = attributes.copy()
             attributes_temp.remove(A)
-            returned_node = ID3(svi,target_name,attributes_temp)
+            var = ID3(svi,target_name,attributes_temp,depth+1,depth_limit)
+            if(type(var) == type(tuple)):
+                returned_node.name = "" + var[0] + var[1]
+                returned_node.clf = var[2]
+            else:
+                returned_node = var 
             child2 = returned_node
             child.add_child(child2)
 
@@ -154,7 +177,11 @@ def getVal(att,values):
 def predict(root_node,value_arr,text):
     target = ""
     child_arr = root_node.returnChildrenArray()
+    global prediction
     #Attribute child.
+    if("clf" in root_node.name):
+        prediction = root_node.clf.predict([value_arr])
+        return
     if(len(child_arr) == 1 and "target" not in str(child_arr[0].name[0])):
         predict(child_arr[0],value_arr,text)
         return
@@ -162,9 +189,7 @@ def predict(root_node,value_arr,text):
     if("target" in child_arr[0].name[0]):
         text += "result = " + str(child_arr[0].name[2])
         target = str(child_arr[0].name[2])
-        global prediction
         prediction = target
-        #print(text)
         return text
     
     #main root or subroot
@@ -175,16 +200,14 @@ def predict(root_node,value_arr,text):
                 predict(child,value_arr,text)
                 break
 
-    
-def K_fold(df,target,attr):
+
+def K_fold(df,target,attr,depth,depthlimit):
     if(len(df) < 5):
-        row_count = df.shape[0]
         test_data = df[0:1]
         temp_df = df.copy()
         temp_df.drop(temp_df.index[0:1],inplace=True)
         train_data = temp_df
-        print(findTrueNumber(train_data,test_data,target,attr)/len(df))
-        return
+        return(findTrueNumber(train_data,test_data,target,attr,depth,depthlimit)/len(df))
 
     start_index = 0
     added_number = int(len(df)/5)
@@ -201,13 +224,61 @@ def K_fold(df,target,attr):
         start_index = start_index + added_number
         end_index = start_index + added_number
         train_data = temp_df
-        sum_true = sum_true + findTrueNumber(train_data,test_data,target,attr)
-    print(sum_true/len(df))
+        sum_true = sum_true + findTrueNumber(train_data,test_data,target,attr,depth,depthlimit)
+    return (str(sum_true/len(df)))
 
-def findTrueNumber(train_data,test_data,target,attr):
+def findTrueNumberNaiveBayes(train_data,test_data):
+    model_array = returnNaiveBayesModel(train_data)
+    true_val_num = 0
+    target_index = len(train_data.columns)-1
+    target_name = train_data.columns[target_index]
+    for i in range(len(test_data.values)-1):
+        yi = str(test_data[target_name].values[i])
+        #values = test_data.loc[[i]]
+        values = getRowbyIndex(test_data,i)
+        predicted = findandCalcResult(model_array,values,target_name)
+        y_est = predicted
+        if(str(yi) == str(y_est)):
+            true_val_num = true_val_num + 1 
+        
+    return true_val_num
+
+#returns target 1 or 0
+def findandCalcResult(model_array,values,target_name):
+    global attribute_keys
+    index = 0
+    zero_probability = 1
+    one_probability = 1
+    for val in values:
+        attr_name = list(attribute_keys)[index]
+        index = index + 1
+        found_control0 = False
+        found_control1 = False
+        for submodel in model_array:
+            if(str(submodel[0]) == str(attr_name)):
+                if(submodel[1] == val):
+                    if(submodel[2] == 0):
+                        found_control0 = True
+                        zero_probability = zero_probability*submodel[3]
+                    else:
+                        found_control1 = True
+                        one_probability = one_probability*submodel[3]
+        if(found_control0 == False):
+            zero_probability = 0
+        if(found_control1 == False):
+            one_probability = 0
+
+    if(one_probability > zero_probability):
+        return 1
+    else:
+        return 0
+
+
+
+def findTrueNumber(train_data,test_data,target,attr,depth,depthlimit):
     global prediction
 
-    root = ID3(train_data,target,attr)
+    root = ID3(train_data,target,attr,0,depthlimit)
 
     true_val_num = 0
     for i in range(len(test_data.values)-1):
@@ -242,13 +313,68 @@ def printTree(root_node,number):
     if(number == 0):
         print("root : ",root_node.name)
     text = ""
+    for i in range(number):
+        text = "   " + text
     for child in var:
-        for i in range(number):
-            text = "   " + text
         print(text,"ch",number," : ",child.name)
         printTree(child,number+1)
              
+def returnNaiveBayesModel(df):
+    #if not in model array return 0
+    keys_array = list(df.keys())
+    Model_array = []
+    target = keys_array.pop(-1)
+    attribute_array = keys_array 
+    for att in attribute_array: 
+        uniques = findUniqueArray(df,att)
+        for uniq in uniques:
+            unique_targets = findUniqueArray(df,target)
+            for uniq_target in unique_targets:
+                model = []
+                model.append(str(att))
+                model.append(str(uniq))
+                model.append(str(uniq_target))
+                model.append(calcProbability(df,att,uniq,uniq_target))
+                Model_array.append(model)
+    return Model_array
 
+def calcProbability(df,att,uniq,uniq_target):
+    all_count = 0
+    row_count = 0
+    for row in df.itertuples():
+        index = attribute_keys.index(att)
+        if(index == -1):
+            return 0
+        
+        #rows of df has 'index' as firstcolumn
+        index = index+1
+
+        if(int(row[index]) == int(uniq)):
+            all_count = all_count + 1
+            if(int(row[-1]) == int(uniq_target)):
+                row_count = row_count + 1  
+    return (row_count/all_count)
+
+def kFoldNaiveBayes(df):
+    
+    start_index = 0
+    added_number = int(len(df)/5)
+    end_index = start_index + added_number
+    sum_true = 0 
+
+    for i in range(1,6):
+        if(i == 5):
+            end_index = len(df)
+
+    
+        test_data = df[start_index:end_index]
+        temp_df = df.copy()
+        temp_df.drop(temp_df.index[start_index:end_index],inplace=True)
+        start_index = start_index + added_number
+        end_index = start_index + added_number
+        train_data = temp_df
+        sum_true = sum_true + findTrueNumberNaiveBayes(train_data,test_data)
+    return (sum_true/len(df))
 
 def main():
     #Model and dataset are gathered from the arguments
@@ -264,15 +390,21 @@ def main():
     attributes = list(attributes[:-1])
     global df_attributes
     df_attributes = attributes
-    printTree(ID3(df,target_name,attributes),0)
-    print("------------------------------------")
-    print("------------------------------------")
-    print("------------------------------------")
+
     create_attribute_array(df)
-    #root = ID3(df,target_name,attributes)
+    if(len(sys.argv) > 3):
+        root = ID3(df,target_name,attributes,0,int(sys.argv[3]))
+    else:
+        root = ID3(df,target_name,attributes,0,-1)
+
+    #printTree(root,0)
     #chr_arr = root.returnChildrenArray()
     #predict(root,[2],"")
     #getSvi(df,"F1",1)
-    K_fold(df,target_name,attributes)
+    
+    print(K_fold(df,target_name,attributes,0,int(sys.argv[3])))
+    model_array = returnNaiveBayesModel(df)
+    print(kFoldNaiveBayes(df))
+
 if __name__ == "__main__":
     main()
