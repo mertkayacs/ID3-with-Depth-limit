@@ -40,6 +40,49 @@ One script contains the tree, the baseline and the evaluation.
 | <img src="docs/assets/readme/icons/chart-no-axes-column.svg" width="18" height="18" alt=""> **A baseline in the same run** | The script prints the tree accuracy as `DTLog` and the Naive Bayes accuracy as `NB`, both from k-fold cross validation. |
 | <img src="docs/assets/readme/icons/database.svg" width="18" height="18" alt=""> **Make your own data** | [data-generator2.py](data-generator2.py) writes a synthetic CSV with as many features and samples as you ask for. |
 
+## A quick tour
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/tour/depth-dark.webp">
+        <img src="docs/assets/readme/tour/depth-light.webp" alt="Code card showing the start of the ID3 function in hw2.py">
+      </picture>
+      <h3>Depth limit</h3>
+      At the limit the node becomes a logistic regression fitted on the rows that reached it.
+    </td>
+    <td width="50%" valign="top">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/tour/entropy-dark.webp">
+        <img src="docs/assets/readme/tour/entropy-light.webp" alt="Code card showing find_Entropy in hw2.py">
+      </picture>
+      <h3>Entropy</h3>
+      The entropy of the target column, which drives the information gain.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/tour/data-dark.webp">
+        <img src="docs/assets/readme/tour/data-light.webp" alt="Code card showing the first rows of data.csv">
+      </picture>
+      <h3>Sample data</h3>
+      The first rows of data.csv: an index, four features and the target.
+    </td>
+    <td width="50%" valign="top">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/tour/generator-dark.webp">
+        <img src="docs/assets/readme/tour/generator-light.webp" alt="Code card showing the start of data-generator2.py">
+      </picture>
+      <h3>Data generator</h3>
+      data-generator2.py draws random weights and powers for each feature to label synthetic rows.
+    </td>
+  </tr>
+</table>
+
+<p align="center"><sub>Code cards show the files as they are in the repository. No model was trained for this tour.</sub></p>
+
 ## Features
 
 **Model**
@@ -100,5 +143,7 @@ A CSV with an index in the first column, categorical feature columns, and the ta
 </details>
 
 If ID3 with Depth Limit is useful to you, a ⭐ helps other people find it.
+
+Photos behind the screenshots are credited in [docs/assets/readme/CREDITS.md](docs/assets/readme/CREDITS.md).
 
 [![views](https://hits.sh/github.com/mertkayacs/ID3-with-Depth-limit.svg?view=today-total&style=flat-square&label=views&color=2F4A3A&labelColor=1E2A38)](https://github.com/mertkayacs/ID3-with-Depth-limit)
